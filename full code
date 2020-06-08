@@ -1,0 +1,195 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Sun May 24 19:52:31 2020
+
+"""
+
+# -*- coding: utf-8 -*-
+"""
+Spyder Editor
+
+This is a temporary script file.
+
+
+
+author:Yonatan Eini
+"""
+
+# -*- coding: utf-18 -*-
+#saved model- "deep_learning_saved_model"
+import shutil
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+import warnings
+import matplotlib.image as mpimg
+from keras.preprocessing.image import load_img
+from keras.preprocessing.image import img_to_array
+from keras.models import load_model
+import sys
+#import numpy as np
+import keras
+import matplotlib.pyplot as plt
+#import cv2
+import tensorflow as tf
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+from keras.models import Sequential
+from keras.layers import Dense
+from keras.layers import Dropout
+from keras.layers import Flatten
+from keras.layers.convolutional import Conv2D
+from keras.layers.convolutional import MaxPooling2D
+from keras.preprocessing.image import ImageDataGenerator
+if not sys.warnoptions:
+    warnings.simplefilter("ignore")
+
+class moving_pics():
+    def move_dog_pics(source,dest,max_pics):
+        current=0
+        files= os.listdir(source)
+        for f in files:
+            if current<max_pics and f.startwith('cat'):
+                shutil.move(source+"\\"+f,dest)
+                current=current+1
+    
+    def move_cat_pics(source,dest,max_pics):
+        current=0
+        files= os.listdir(source)
+        for f in files:
+            if current<max_pics and f.startwith('dog'):
+                shutil.move(source+"\\"+f,dest)
+                current=current+1
+                
+    def move_regular_pics(source,dest,max_pics):
+        current=0
+        files= os.listdir(source)
+        for f in files:
+            if current<max_pics:
+                shutil.move(source+"\\"+f,dest)
+                current=current+1
+
+
+
+
+def baseline_model():#building the model
+    model= Sequential()
+    model.add(Conv2D(32,(3,3),input_shape=(65,65,1),activation='relu')) #first layer
+    model.add(MaxPooling2D(2,2))
+    model.add(Conv2D(32,(3,3),activation='relu')) 
+    model.add(MaxPooling2D(2,2))
+ 
+    model.add(Conv2D(64,(3,3),activation='relu')) #second layer
+    model.add(MaxPooling2D(2,2))
+    model.add(Conv2D(64,(3,3),activation='relu')) 
+    model.add(MaxPooling2D(2,2)) 
+    
+    
+    model.add(Dropout(0.5))
+    model.add(Flatten())
+    model.add(Dense(100,activation='relu'))  #third layer
+    model.add(Dense(2,activation='softmax')) 
+  
+    model.compile( loss='sparse_categorical_crossentropy',optimizer='adam', metrics=['accuracy']) #compile the model
+    model.summary()
+    return model
+
+
+
+
+def Activate_model(new_model_name): #conncting between the model and the project goal
+    model= baseline_model()
+    datagen=ImageDataGenerator(rescale=1.0/255.0) #normalization
+    train_it= datagen.flow_from_directory(r'C:\DeepLProject\train', #dog and not dog train folders
+       class_mode='sparse', batch_size=16, target_size = (65,65),color_mode='grayscale')
+    test_it= datagen.flow_from_directory(r'C:\DeepLProject\test', #test folder
+       class_mode='sparse', batch_size=16, target_size = (65,65),color_mode='grayscale')
+
+    history= model.fit_generator(train_it,steps_per_epoch=len(train_it),validation_data=test_it, validation_steps=len(test_it),epochs=10,verbose=1) #final result
+    loss,acc=(model.evaluate_generator(test_it,steps=len(test_it),verbose=1))
+    print('> %.3f' % (acc*100.0))
+  #  summarize_diagnostics(history)
+    results(history)
+    model.save(new_model_name)
+
+
+
+def results(history): #building graphs
+    print(history.history.keys())
+    plt.plot(history.history['accuracy'])
+    plt.plot(history.history['val_accuracy'])
+    plt.title('model accuracy')
+    plt.ylabel('accuracy')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    plt.show() #accuracy per epoch graph
+    plt.plot(history.history['loss'])
+    plt.plot(history.history['val_loss'])
+    plt.title('model loss')
+    plt.ylabel('loss')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    plt.show() #loss per epoch graph
+     
+    
+def load_image(file_path): #matching the pic to the model
+    img=mpimg.imread(file_path)
+    imgplot = plt.imshow(img)
+#    plt.show() #display the pic
+    img=load_img(file_path,target_size=(65,65))
+    img = img_to_array(img)
+    img = img.reshape(-1,65,65,1)
+    return img
+
+
+
+def predict_the_image(file_path):
+    print("    ")
+    print('enter model name to predict pic')
+    new_model= input()
+    img= load_image(file_path)    
+    options=['not dog','dog'] #model's options
+    model = load_model(new_model)
+    result = model.predict(img)
+    print("  ")
+    print("the result of the prediction:")
+    print (options[int(result[0][0])]) #result of the predict
+    
+def sort_data():
+    print('preparing your DATA.....')
+    print('   ')
+    t= moving_pics()
+    t.move_cat_pics(r'C:\project-data.zip\dogs and cats',r'C:\project\train\not dog', 3500) #moving 3500 cats pictures to not dog train folder
+    t.move_dog_pics(r'C:\project-data.zip\dogs and cats',r'C:\project\train\dog',10000) #moving 10000 dogs pictures to dog train folder
+    t.move_dog_pics(r'C:\DeepLearningProject\train\dog',r'C:\project\test\test',2500) #moving 2500 dogs pictures to test folder
+    t.move_regular_pics(r'C:\project-data.zip\man', r'C:\project\train\not dog', 800) #moving 800 man pictures to not dog train folder
+    t.move_regular_pics(r'C:\project-data.zip\woman',r'C:\project\train\not dog', 960) #moving 960 woman pictures to not dog train folder
+    t.move_regular_pics(r'C:\project-data.zip\my pics\cavallo',r'C:\project\train\not dog',450 ) #moving 450 hourses pictures to not dog train folder
+    t.move_regular_pics(r'C:\project-data.zip\my pics\elefante',r'C:\project\train\not dog',450 ) #moving 450 elefant pictures to not dog train folder
+    t.move_regular_pics(r'C:\project-data.zip\my pics\gatto',r'C:\project\train\not dog',700 ) #moving 700 cats pictures to not dog train folder
+    t.move_regular_pics(r'C:\project-data.zip\my pics\pecora',r'C:\project\train\not dog',450 ) #moving 450 sheepes pictures to not dog train folder
+def operations():
+    print('what do you want to do?')
+    print('enter 1 to sort your DATA to train and test foldeers')
+    print('enter 2 for compile the model and save')
+    print('enter 3 for predict picture')
+    print('enter 4 to exit')
+    x=input()     
+    if(x=='1'):
+        sort_data()
+        print('data is sorted!')
+        print('ready to train the model!')
+    if (x=='2'):
+        print('enter your new model name')
+        name= input()
+        Activate_model(name)
+        print("now, you can use this model name:"+name+" to predict pictures!")
+    if (x=='3'):
+        print('enter a pic path') #pic to predict
+        pic_path=input()
+        predict_the_image(pic_path)
+    if (x=='4'):
+        print('exiting...')
+
+def main():
+    operations()
+    
+main()
